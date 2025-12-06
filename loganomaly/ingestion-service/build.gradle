@@ -1,0 +1,33 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot'
+}
+
+// Workaround for IDE: ensure Kotlin task exists even though we don't use Kotlin
+tasks.maybeCreate('prepareKotlinBuildScriptModel').configure {
+    group = 'other'
+    description = 'Dummy task for IDE compatibility'
+}
+
+group = 'com.loganomaly.detector'
+version = '0.0.1-SNAPSHOT'
+description = 'ingestion-service'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+dependencies {
+    implementation project(':common')
+
+	implementation 'org.springframework.kafka:spring-kafka'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

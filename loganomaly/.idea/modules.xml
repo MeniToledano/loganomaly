@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/analysis-service/loganomaly.analysis-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/analysis-service/loganomaly.analysis-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/auth-service/loganomaly.auth-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/auth-service/loganomaly.auth-service.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/common/loganomaly.common.main.iml" filepath="$PROJECT_DIR$/.idea/modules/common/loganomaly.common.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ingestion-service/loganomaly.ingestion-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/ingestion-service/loganomaly.ingestion-service.main.iml" />
+    </modules>
+  </component>
+</project>

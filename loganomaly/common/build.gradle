@@ -1,0 +1,22 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.loganomaly.detector'
+version = '0.0.1-SNAPSHOT'
+description = 'common'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+dependencies {
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

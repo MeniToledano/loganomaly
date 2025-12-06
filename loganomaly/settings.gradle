@@ -1,0 +1,9 @@
+pluginManagement {
+    plugins {
+        id 'org.springframework.boot' version '3.3.5'
+    }
+}
+
+rootProject.name = 'loganomaly'
+
+include 'common', 'auth-service', 'ingestion-service', 'analysis-service'
