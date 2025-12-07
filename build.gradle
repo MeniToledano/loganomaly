@@ -9,30 +9,28 @@ allprojects {
 
     repositories {
         mavenCentral()
+
     }
 }
 
 subprojects {
     apply plugin: 'java'
     apply plugin: 'io.spring.dependency-management'
-    
+
+    dependencyManagement {
+        imports {
+            mavenBom 'org.springframework.boot:spring-boot-dependencies:3.3.5'
+        }
+    }
+
     configurations {
         compileOnly {
             extendsFrom annotationProcessor
         }
     }
-    
+
     dependencies {
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
-    }
-}
-
-// Configure dependency management for all projects
-subprojects {
-    dependencyManagement {
-        imports {
-            mavenBom 'org.springframework.boot:spring-boot-dependencies:3.3.5'
-        }
     }
 }
