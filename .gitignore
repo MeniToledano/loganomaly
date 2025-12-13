@@ -1,0 +1,54 @@
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build directories
+build/
+target/
+out/
+bin/
+.gradle/
+
+# Compiled files
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+
+# Node modules (if any frontend)
+node_modules/
+npm-debug.log*
+
+# Test coverage
+coverage/
+*.cover
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Package files
+*.tar.gz
+*.zip
+
