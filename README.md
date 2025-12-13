@@ -137,9 +137,21 @@ Both `auth-service` and `analysis-service` are configured to use PostgreSQL:
 - **Topic**: `log-events`
 - **Consumer Group**: `analysis-service-group`
 
+### JWT Configuration (Auth Service)
+
+Configure JWT settings in `auth-service/src/main/resources/application.properties`:
+
+```properties
+# JWT Configuration
+jwt.secret=your-secret-key-min-32-chars-for-hs256-algorithm
+jwt.expiration=3600000  # 1 hour in milliseconds
+```
+
+**Important**: Change `jwt.secret` to a secure random string in production (minimum 32 characters for HS256).
+
 ### Service Configuration Files
 
-- `auth-service/src/main/resources/application.properties` - Auth service config with DB settings
+- `auth-service/src/main/resources/application.properties` - Auth service config with DB and JWT settings
 - `analysis-service/src/main/resources/application.properties` - Analysis service config with DB and Kafka settings
 - `ingestion-service/src/main/resources/application.properties` - Ingestion service config
 
@@ -155,9 +167,16 @@ curl -X POST http://localhost:8080/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "user1",
-    "password": "password123",
-    "email": "user1@example.com"
+    "email": "user1@example.com",
+    "password": "password123"
   }'
+
+# Response (200 OK):
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "username": "user1",
+  "email": "user1@example.com"
+}
 
 # Login (POST /login)
 curl -X POST http://localhost:8080/login \
@@ -166,7 +185,27 @@ curl -X POST http://localhost:8080/login \
     "username": "user1",
     "password": "password123"
   }'
+
+# Response (200 OK):
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "username": "user1",
+  "email": "user1@example.com"
+}
+
+# Health Check (GET /health)
+curl http://localhost:8080/health
+
+# Response:
+{
+  "status": "UP",
+  "service": "auth-service"
+}
 ```
+
+**Error Responses**:
+- `409 Conflict`: Username or email already exists
+- `401 Unauthorized`: Invalid credentials during login
 
 ### Step 2: Sending Logs (Ingestion Service)
 
@@ -253,22 +292,50 @@ Run tests for all services:
 ./gradlew test
 
 # Run tests for specific service
+./gradlew :auth-service:test      # 28 comprehensive tests
 ./gradlew :analysis-service:test
-./gradlew :auth-service:test
 ./gradlew :ingestion-service:test
 ```
 
-**Note**: Tests are configured to exclude Kafka auto-configuration to avoid requiring a running Kafka instance.
+### Auth Service Test Coverage
 
-## 🛡️ DevSecOps Aspects
+The auth-service includes comprehensive test coverage (28 tests):
+
+- **Unit Tests**: JwtService (10 tests), AuthenticationService (6 tests)
+- **Controller Tests**: AuthController (6 tests) using MockMvc
+- **Integration Tests**: SecurityConfiguration (5 tests)
+- **Application Context**: Spring Boot application test (1 test)
+
+All tests use H2 in-memory database for fast execution without external dependencies.
+
+**Note**: Other service tests are configured to exclude Kafka auto-configuration to avoid requiring a running Kafka instance.
+
+## 🛡️ Security & DevSecOps
 
 The project is designed with security best practices:
 
+### Authentication & Authorization
+- **JWT-based Authentication**: Stateless token-based authentication using JJWT 0.12.3
+- **BCrypt Password Hashing**: Secure password storage with salt
+- **Spring Security**: Configured with stateless session management
+- **Public Endpoints**: `/register`, `/login`, `/health` are publicly accessible
+- **Token Validation**: All protected endpoints validate JWT tokens
+
+### Application Security
 - **Separation of Concerns**: Clear separation between authentication, ingestion, and analysis services
-- **Secure Communication**: JWT-based authentication for API access
+- **CORS Configuration**: Cross-origin requests properly configured
+- **Error Handling**: Centralized exception handling with appropriate HTTP status codes
+- **Input Validation**: JPA validation constraints on user entities
+
+### Infrastructure Security
 - **Container Security**: Multi-stage Docker builds for minimal attack surface
 - **Dependency Management**: Gradle dependency management with version control
 - **Least Privilege**: Separate database users per service (in production)
+
+### Best Practices
+- **No Hardcoded Secrets**: JWT secret configured via properties file
+- **Comprehensive Testing**: 28 tests covering security configuration and authentication flows
+- **Type-safe DTOs**: Request/response validation with Lombok-generated classes
 
 ## 📝 Development Notes
 
