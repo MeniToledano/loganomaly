@@ -15,13 +15,76 @@ This project is a platform for monitoring and detecting anomalies in logs in rea
 
 ## 🏗️ Architectural Structure
 
-The project consists of four main modules and infrastructure components:
+### System Architecture Diagram
+
+```mermaid
+flowchart TB
+    subgraph clients [External Clients]
+        User[Dashboard User]
+        App1[Client Application]
+        App2[Log Agent]
+    end
+
+    subgraph frontend [Frontend - Port 5173]
+        UI[React Dashboard]
+    end
+
+    subgraph backend [Backend Microservices]
+        Auth[Auth Service :8080]
+        Ingestion[Ingestion Service :8081]
+        Analysis[Analysis Service :8082]
+    end
+
+    subgraph messaging [Message Broker]
+        Kafka[(Kafka: log-events)]
+    end
+
+    subgraph storage [Data Layer]
+        Postgres[(PostgreSQL)]
+    end
+
+    User -->|JWT Auth| UI
+    UI -->|Login/Register| Auth
+    UI -->|View Alerts| Analysis
+    
+    App1 -->|API Key + Logs| Ingestion
+    App2 -->|API Key + Logs| Ingestion
+    
+    Auth -->|Store Users| Postgres
+    Ingestion -->|Produce Events| Kafka
+    Kafka -->|Consume Events| Analysis
+    Analysis -->|Store Alerts| Postgres
+```
+
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant Client as Client App
+    participant Ingestion as Ingestion Service
+    participant Kafka as Kafka
+    participant Analysis as Analysis Service
+    participant DB as PostgreSQL
+
+    Client->>Ingestion: POST /api/logs (X-API-Key)
+    Ingestion->>Ingestion: Validate API Key
+    Ingestion->>Kafka: Produce log event
+    Ingestion-->>Client: 202 Accepted (event ID)
+    
+    Kafka->>Analysis: Consume log event
+    Analysis->>Analysis: Detect anomalies
+    alt Anomaly Detected
+        Analysis->>DB: Store alert
+    end
+```
+
+### Service Overview
 
 | Module / Service | Role | Technology | Port |
 |-----------------|------|------------|------|
 | **auth-service** | Handles registration, login, and JWT issuance | Spring Security, JPA, PostgreSQL | 8080 |
-| **ingestion-service** | Receives logs via REST API and pushes them to Kafka (Producer) | Spring Web, Spring Kafka | 8081 |
-| **analysis-service** | Consumes logs from Kafka (Consumer), executes anomaly detection logic, and persists alerts | Spring Kafka, JPA, PostgreSQL | 8082 |
+| **ingestion-service** | Receives logs via REST API (API Key auth) and pushes them to Kafka | Spring Web, Spring Kafka, Spring Security | 8081 |
+| **analysis-service** | Consumes logs from Kafka, executes anomaly detection logic, and persists alerts | Spring Kafka, JPA, PostgreSQL | 8082 |
 | **frontend-ui** | React-based web interface for interacting with the platform | React, TypeScript, Vite | 5173 |
 | **common** | Java library containing shared data models (DTOs) | Java | - |
 
@@ -149,11 +212,27 @@ jwt.expiration=3600000  # 1 hour in milliseconds
 
 **Important**: Change `jwt.secret` to a secure random string in production (minimum 32 characters for HS256).
 
+### API Key Configuration (Ingestion Service)
+
+Configure the API key in `ingestion-service/src/main/resources/application.properties`:
+
+```properties
+# API Key for log ingestion (machine-to-machine auth)
+ingestion.api-key=your-api-key-here-change-in-production
+```
+
+**Important**: Change the API key to a secure random string in production. Consider using environment variables:
+
+```bash
+# Set via environment variable
+export INGESTION_API_KEY=your-secure-api-key
+```
+
 ### Service Configuration Files
 
 - `auth-service/src/main/resources/application.properties` - Auth service config with DB and JWT settings
+- `ingestion-service/src/main/resources/application.properties` - Ingestion service config with Kafka and API key
 - `analysis-service/src/main/resources/application.properties` - Analysis service config with DB and Kafka settings
-- `ingestion-service/src/main/resources/application.properties` - Ingestion service config
 
 ## 🔑 API Usage
 
@@ -209,19 +288,90 @@ curl http://localhost:8080/health
 
 ### Step 2: Sending Logs (Ingestion Service)
 
-Send logs as JSON to the ingestion service, including the JWT in the Authorization header:
+The ingestion service uses **API Key authentication** (not JWT) for machine-to-machine log ingestion.
+
+#### Single Log Ingestion
 
 ```bash
 curl -X POST http://localhost:8081/api/logs \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "X-API-Key: your-api-key-here-change-in-production" \
   -d '{
-    "timestamp": "2025-12-05T10:00:00Z",
+    "timestamp": "2025-12-19T10:00:00Z",
     "level": "INFO",
     "message": "User login successful for user_id: 101",
-    "service": "auth-service"
+    "service": "auth-service",
+    "metadata": {
+      "user_id": "101",
+      "ip_address": "192.168.1.100"
+    }
   }'
+
+# Response (202 Accepted):
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "ACCEPTED",
+  "timestamp": "2025-12-19T10:00:01Z"
+}
 ```
+
+#### Batch Log Ingestion
+
+For high-volume clients, use the batch endpoint:
+
+```bash
+curl -X POST http://localhost:8081/api/logs/batch \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here-change-in-production" \
+  -d '{
+    "logs": [
+      {
+        "level": "INFO",
+        "message": "Request processed",
+        "service": "api-gateway"
+      },
+      {
+        "level": "ERROR",
+        "message": "Database connection failed",
+        "service": "user-service"
+      },
+      {
+        "level": "WARN",
+        "message": "High memory usage detected",
+        "service": "cache-service"
+      }
+    ]
+  }'
+
+# Response (202 Accepted):
+{
+  "acceptedCount": 3,
+  "failedCount": 0,
+  "acceptedIds": ["id-1", "id-2", "id-3"],
+  "timestamp": "2025-12-19T10:00:01Z"
+}
+```
+
+#### Health Check
+
+```bash
+curl http://localhost:8081/health
+
+# Response:
+{
+  "status": "UP",
+  "service": "ingestion-service"
+}
+```
+
+**Log Event Fields**:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `timestamp` | ISO-8601 | No | Event timestamp (auto-generated if not provided) |
+| `level` | String | Yes | Log level (TRACE, DEBUG, INFO, WARN, ERROR, FATAL) |
+| `message` | String | Yes | Log message content |
+| `service` | String | Yes | Source service name |
+| `metadata` | Object | No | Additional key-value pairs |
 
 **Note**: Anomaly examples might include:
 - Logs containing "SECURITY_BREACH"
@@ -293,33 +443,38 @@ Run tests for all services:
 
 # Run tests for specific service
 ./gradlew :auth-service:test      # 28 comprehensive tests
+./gradlew :ingestion-service:test # 21 comprehensive tests
 ./gradlew :analysis-service:test
-./gradlew :ingestion-service:test
 ```
 
-### Auth Service Test Coverage
-
-The auth-service includes comprehensive test coverage (28 tests):
+### Auth Service Test Coverage (28 tests)
 
 - **Unit Tests**: JwtService (10 tests), AuthenticationService (6 tests)
 - **Controller Tests**: AuthController (6 tests) using MockMvc
 - **Integration Tests**: SecurityConfiguration (5 tests)
 - **Application Context**: Spring Boot application test (1 test)
 
-All tests use H2 in-memory database for fast execution without external dependencies.
+### Ingestion Service Test Coverage (21 tests)
 
-**Note**: Other service tests are configured to exclude Kafka auto-configuration to avoid requiring a running Kafka instance.
+- **Controller Tests**: LogController (6 tests), HealthController (1 test)
+- **Service Tests**: LogIngestionService (7 tests) - Kafka producer logic
+- **Security Tests**: ApiKeyAuthentication (7 tests) - API key validation
+
+All tests use mocked Kafka to avoid requiring a running Kafka instance.
+
+**Note**: Tests are configured to exclude Kafka auto-configuration for fast execution without external dependencies.
 
 ## 🛡️ Security & DevSecOps
 
 The project is designed with security best practices:
 
 ### Authentication & Authorization
-- **JWT-based Authentication**: Stateless token-based authentication using JJWT 0.12.3
+- **JWT-based Authentication**: Stateless token-based authentication using JJWT 0.12.3 (Auth Service, for users)
+- **API Key Authentication**: Simple header-based auth for machine-to-machine communication (Ingestion Service)
 - **BCrypt Password Hashing**: Secure password storage with salt
 - **Spring Security**: Configured with stateless session management
 - **Public Endpoints**: `/register`, `/login`, `/health` are publicly accessible
-- **Token Validation**: All protected endpoints validate JWT tokens
+- **Token Validation**: All protected endpoints validate JWT tokens or API keys
 
 ### Application Security
 - **Separation of Concerns**: Clear separation between authentication, ingestion, and analysis services
@@ -333,8 +488,8 @@ The project is designed with security best practices:
 - **Least Privilege**: Separate database users per service (in production)
 
 ### Best Practices
-- **No Hardcoded Secrets**: JWT secret configured via properties file
-- **Comprehensive Testing**: 28 tests covering security configuration and authentication flows
+- **No Hardcoded Secrets**: JWT secret and API keys configured via properties files
+- **Comprehensive Testing**: 49+ tests covering security configuration and authentication flows
 - **Type-safe DTOs**: Request/response validation with Lombok-generated classes
 
 ## 📝 Development Notes
