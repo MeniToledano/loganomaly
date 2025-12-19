@@ -26,21 +26,21 @@ flowchart TB
     end
 
     subgraph frontend [Frontend Layer]
-        UI[React Dashboard\nPort 5173]
+        UI[React Dashboard - Port 5173]
     end
 
     subgraph backend [Backend Microservices]
-        Auth[Auth Service\nPort 8080]
-        Ingestion[Ingestion Service\nPort 8081]
-        Analysis[Analysis Service\nPort 8082]
+        Auth[Auth Service - Port 8080]
+        Ingestion[Ingestion Service - Port 8081]
+        Analysis[Analysis Service - Port 8082]
     end
 
     subgraph messaging [Message Broker]
-        Kafka[(Apache Kafka\nlog-events topic)]
+        Kafka[(Apache Kafka - log-events topic)]
     end
 
     subgraph storage [Data Layer]
-        Postgres[(PostgreSQL\nUsers & Alerts)]
+        Postgres[(PostgreSQL - Users and Alerts)]
     end
 
     User -->|JWT Auth| UI
