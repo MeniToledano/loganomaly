@@ -1,0 +1,192 @@
+### LogAnomaly Data Pipeline Integration Tests
+### Use with VS Code REST Client extension or IntelliJ HTTP Client
+
+### Variables
+@authUrl = http://localhost:8080
+@ingestionUrl = http://localhost:8081
+@analysisUrl = http://localhost:8082
+@apiKey = your-api-key-here-change-in-production
+
+### ===== HEALTH CHECKS =====
+
+### Check Auth Service Health
+GET {{authUrl}}/health
+
+### Check Ingestion Service Health
+GET {{ingestionUrl}}/health
+
+### Check Analysis Service Health
+GET {{analysisUrl}}/health
+
+### ===== SINGLE LOG INGESTION =====
+
+### Ingest a single INFO log
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "level": "INFO",
+    "message": "User logged in successfully",
+    "service": "auth-service",
+    "metadata": {
+        "userId": "user-123",
+        "ipAddress": "192.168.1.100"
+    }
+}
+
+### Ingest a single ERROR log
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "level": "ERROR",
+    "message": "Database connection failed: timeout after 30s",
+    "service": "database-service",
+    "metadata": {
+        "host": "db-primary.internal",
+        "port": "5432"
+    }
+}
+
+### Ingest a WARN log
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "level": "WARN",
+    "message": "High memory usage detected: 85%",
+    "service": "monitoring-service",
+    "metadata": {
+        "threshold": "80%",
+        "current": "85%"
+    }
+}
+
+### ===== BATCH LOG INGESTION =====
+
+### Ingest multiple logs in a batch
+POST {{ingestionUrl}}/api/logs/batch
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "logs": [
+        {
+            "level": "DEBUG",
+            "message": "Processing request started",
+            "service": "api-gateway"
+        },
+        {
+            "level": "INFO",
+            "message": "Request processed successfully",
+            "service": "api-gateway",
+            "metadata": {
+                "duration": "45ms"
+            }
+        },
+        {
+            "level": "ERROR",
+            "message": "Failed to process payment: insufficient funds",
+            "service": "payment-service",
+            "metadata": {
+                "transactionId": "tx-789"
+            }
+        }
+    ]
+}
+
+### ===== VALIDATION TESTS =====
+
+### Test validation - missing required field (should return 400)
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "level": "INFO",
+    "message": "Test message"
+}
+
+### Test validation - invalid log level (should return 400)
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "level": "INVALID",
+    "message": "Test message",
+    "service": "test-service"
+}
+
+### Test validation - empty batch (should return 400)
+POST {{ingestionUrl}}/api/logs/batch
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "logs": []
+}
+
+### ===== AUTHENTICATION TESTS =====
+
+### Test without API key (should return 401/403)
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+
+{
+    "level": "INFO",
+    "message": "This should fail",
+    "service": "test-service"
+}
+
+### Test with invalid API key (should return 401/403)
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: invalid-key
+
+{
+    "level": "INFO",
+    "message": "This should fail",
+    "service": "test-service"
+}
+
+### ===== QUERY LOGS FROM ANALYSIS SERVICE =====
+
+### Get recent log events
+GET {{analysisUrl}}/api/events
+
+### Get log count
+GET {{analysisUrl}}/api/events/count
+
+### Get logs by service name
+GET {{analysisUrl}}/api/events/service/auth-service
+
+### Get logs by level
+GET {{analysisUrl}}/api/events/level/ERROR
+
+### Get logs from last 24 hours
+GET {{analysisUrl}}/api/events/range
+
+### ===== AUTH SERVICE =====
+
+### Register new user
+POST {{authUrl}}/register
+Content-Type: application/json
+
+{
+    "username": "testuser",
+    "email": "test@example.com",
+    "password": "password123"
+}
+
+### Login
+POST {{authUrl}}/login
+Content-Type: application/json
+
+{
+    "username": "testuser",
+    "password": "password123"
+}

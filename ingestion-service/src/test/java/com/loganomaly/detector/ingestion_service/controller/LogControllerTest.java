@@ -144,30 +144,31 @@ class LogControllerTest {
 
     @Test
     void shouldReturnBadRequestForEmptyBatch() throws Exception {
-        // Given
+        // Given - Empty list triggers @NotEmpty validation
         BatchLogRequest request = BatchLogRequest.builder()
                 .logs(List.of())
                 .build();
 
-        // When & Then
+        // When & Then - Validation error returns ErrorResponse
         mockMvc.perform(post("/api/logs/batch")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.acceptedCount").value(0))
-                .andExpect(jsonPath("$.failedCount").value(0));
+                .andExpect(jsonPath("$.error").exists())
+                .andExpect(jsonPath("$.status").value(400));
     }
 
     @Test
     void shouldReturnBadRequestForNullBatch() throws Exception {
-        // Given
+        // Given - Null list triggers @NotEmpty validation
         BatchLogRequest request = new BatchLogRequest();
 
-        // When & Then
+        // When & Then - Validation error returns ErrorResponse
         mockMvc.perform(post("/api/logs/batch")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
