@@ -2,6 +2,8 @@
 
 Real-time log monitoring and anomaly detection platform built with Event-Driven Microservices.
 
+![Dashboard Preview](docs/dashboard-preview.png)
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -84,6 +86,86 @@ sequenceDiagram
 | frontend-ui | React dashboard | 5173 |
 | postgres-db | PostgreSQL database | 5432 |
 | kafka | Message broker | 9092 |
+
+## Frontend UI
+
+The React dashboard provides a modern, real-time interface for monitoring log anomalies.
+
+### Screenshots
+
+| Login Page | Dashboard |
+|------------|-----------|
+| ![Login](docs/login.png) | ![Dashboard](docs/dashboard.png) |
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| 🔐 **Authentication** | Login/Register with JWT tokens |
+| 📊 **Stats Cards** | Total, Pending, Acknowledged alerts at a glance |
+| 🔍 **Filtering** | Toggle between All / Unacknowledged alerts |
+| ✅ **Acknowledge** | Mark alerts as reviewed with one click |
+| 🔄 **Auto-Refresh** | Dashboard updates every 10 seconds |
+| 🎨 **Dark Theme** | Modern dark UI with severity color coding |
+
+### UI Components
+
+**Dashboard Layout:**
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  ◇ LogAnomaly                                      👤 meni  [Sign Out]   │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐  │
+│  │  📄  0             │  │  ⏱️  0             │  │  ✅  0             │  │
+│  │     Total Alerts   │  │     Pending Review │  │     Acknowledged   │  │
+│  └────────────────────┘  └────────────────────┘  └────────────────────┘  │
+│                                                                          │
+│  Alerts                          [All] [Unacknowledged]      🔄 Refresh  │
+│  ┌──────────────────────────────────────────────────────────────────────┐│
+│  │ TYPE          │ SEVERITY │ SERVICE      │ MESSAGE          │ STATUS ││
+│  ├───────────────┼──────────┼──────────────┼──────────────────┼────────┤│
+│  │ ⚡ HIGH ERROR │ INFO     │ test-anomaly │ 6 ERROR events...│ ✓ meni ││
+│  │ ⚡ HIGH ERROR │ INFO     │ test-svc     │ 6 ERROR events...│ ✓ meni ││
+│  └──────────────────────────────────────────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Login Page:**
+```
+        ┌─────────────────────────────────────┐
+        │              ◇                      │
+        │          LogAnomaly                 │
+        │   Real-time Log Anomaly Detection   │
+        │                                     │
+        │         Welcome Back                │
+        │                                     │
+        │  USERNAME                           │
+        │  ┌─────────────────────────────┐   │
+        │  │ Enter your username         │   │
+        │  └─────────────────────────────┘   │
+        │                                     │
+        │  PASSWORD                           │
+        │  ┌─────────────────────────────┐   │
+        │  │ Enter your password         │   │
+        │  └─────────────────────────────┘   │
+        │                                     │
+        │  ┌─────────────────────────────┐   │
+        │  │          Sign In            │   │
+        │  └─────────────────────────────┘   │
+        │                                     │
+        │  Don't have an account?             │
+        │            Create Account           │
+        └─────────────────────────────────────┘
+```
+
+### Severity Colors
+
+| Severity | Color | Meaning |
+|----------|-------|---------|
+| `CRITICAL` | 🔴 Red | Immediate attention required |
+| `WARNING` | 🟡 Yellow | Potential issue |
+| `INFO` | 🔵 Blue | Informational |
 
 ## Quick Start
 
@@ -211,6 +293,44 @@ docker-compose up -d postgres-db zookeeper kafka
 cd frontend-ui && npm install && npm run dev
 ```
 
+### Frontend Development
+
+```bash
+cd frontend-ui
+
+# Install dependencies
+npm install
+
+# Start dev server (hot reload)
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+**Frontend Architecture:**
+
+```
+frontend-ui/src/
+├── main.tsx              # Entry point
+├── App.tsx               # Router + AuthProvider wrapper
+├── types/index.ts        # TypeScript interfaces
+├── context/
+│   └── AuthContext.tsx   # Global auth state (login/logout/token)
+├── api/
+│   ├── config.ts         # Backend URLs
+│   ├── auth.ts           # Login/Register API calls
+│   └── alerts.ts         # Alerts API calls
+├── components/
+│   └── ProtectedRoute.tsx # Route guard (redirects if not logged in)
+└── pages/
+    ├── Login.tsx         # Login/Register form
+    └── Dashboard.tsx     # Alerts table with stats
+```
+
 ## Testing
 
 ```bash
@@ -293,3 +413,19 @@ docker-compose restart analysis-service
 docker-compose down -v
 docker-compose up --build -d
 ```
+
+## Adding Screenshots
+
+To add screenshots to this README:
+
+1. Take screenshots of the Login and Dashboard pages
+2. Save them to the `docs/` folder:
+   - `docs/dashboard-preview.png` - Main dashboard view (wide)
+   - `docs/login.png` - Login page
+   - `docs/dashboard.png` - Dashboard with alerts
+3. Commit the images to your repository
+
+**Quick screenshot tips:**
+- Use browser DevTools (F12) → Device toolbar for consistent sizing
+- Recommended width: 1280px for dashboard, 800px for login
+- Use dark mode for best results (matches the UI theme)
