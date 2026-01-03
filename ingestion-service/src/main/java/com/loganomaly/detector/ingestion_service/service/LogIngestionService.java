@@ -6,6 +6,7 @@ import com.loganomaly.detector.common.dto.BatchLogRequest;
 import com.loganomaly.detector.common.dto.BatchLogResponse;
 import com.loganomaly.detector.common.dto.LogEventRequest;
 import com.loganomaly.detector.common.dto.LogEventResponse;
+import com.loganomaly.detector.ingestion_service.util.InputSanitizer;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,12 +29,16 @@ public class LogIngestionService {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final InputSanitizer inputSanitizer;
 
     @Value("${spring.kafka.topic.log-events}")
     private String logEventsTopic;
 
     public LogEventResponse ingestLog(LogEventRequest request) {
         String eventId = UUID.randomUUID().toString();
+
+        // Sanitize input to prevent injection attacks
+        sanitizeRequest(request);
 
         // Set timestamp if not provided
         if (request.getTimestamp() == null) {
@@ -92,6 +97,19 @@ public class LogIngestionService {
                 .acceptedIds(acceptedIds)
                 .timestamp(Instant.now())
                 .build();
+    }
+
+    /**
+     * Sanitize the request to prevent injection attacks
+     */
+    private void sanitizeRequest(LogEventRequest request) {
+        request.setMessage(inputSanitizer.sanitize(request.getMessage()));
+        request.setService(inputSanitizer.sanitizeServiceName(request.getService()));
+        
+        // Sanitize metadata values if present
+        if (request.getMetadata() != null) {
+            request.getMetadata().replaceAll((key, value) -> inputSanitizer.sanitize(value));
+        }
     }
 
     /**

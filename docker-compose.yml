@@ -1,190 +1,115 @@
-version: '3.8'
-
 services:
-
   # --- INFRASTRUCTURE SERVICES ---
-
   
-
   postgres-db:
-
     image: postgres:14-alpine
-
     container_name: postgres-db
-
     environment:
-
-      POSTGRES_DB: 'log_db'
-
-      POSTGRES_USER: 'user'
-
-      POSTGRES_PASSWORD: 'password'
-
+      POSTGRES_DB: ${DB_NAME:-log_db}
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
     ports:
-
       - "5432:5432"
-
     volumes:
-
       - postgres_data:/var/lib/postgresql/data
 
-
-
   zookeeper:
-
     image: confluentinc/cp-zookeeper:7.3.0
-
     container_name: zookeeper
-
     environment:
-
       ZOOKEEPER_CLIENT_PORT: 2181
-
       ZOOKEEPER_TICK_TIME: 2000
 
-
-
   kafka:
-
     image: confluentinc/cp-kafka:7.3.0
-
     container_name: kafka
-
     depends_on:
-
       - zookeeper
-
     ports:
-
       - "9092:9092"
-
     environment:
-
       KAFKA_BROKER_ID: 1
-
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
-
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
-
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
-
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-
-      
 
   # --- BACKEND MICROSERVICES (JAVA) ---
 
-  
-
   auth-service:
-
     build:
-
       context: ./auth-service
-
       dockerfile: Dockerfile
-
     container_name: auth-service
-
     ports:
-
       - "8080:8080"
-
     depends_on:
-
       - postgres-db
-
-      
+    environment:
+      DB_HOST: postgres-db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-log_db}
+      DB_USER: ${DB_USER:-user}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-must-be-at-least-32-characters-long-for-hs256-algorithm-security}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
 
   ingestion-service:
-
     build:
-
       context: ./ingestion-service
-
       dockerfile: Dockerfile
-
     container_name: ingestion-service
-
     ports:
-
       - "8081:8081"
-
     depends_on:
-
       - kafka
-
-      
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-log-events}
+      INGESTION_API_KEY: ${INGESTION_API_KEY:-your-api-key-here-change-in-production}
 
   analysis-service:
-
     build:
-
       context: ./analysis-service
-
       dockerfile: Dockerfile
-
     container_name: analysis-service
-
     ports:
-
       - "8082:8082"
-
     depends_on:
-
       - kafka
-
       - postgres-db
-
-      
+    environment:
+      DB_HOST: postgres-db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-log_db}
+      DB_USER: ${DB_USER:-user}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-log-events}
+      ANOMALY_ERROR_THRESHOLD: ${ANOMALY_ERROR_THRESHOLD:-5}
+      ANOMALY_TIME_WINDOW: ${ANOMALY_TIME_WINDOW:-1}
+      ANOMALY_COOLDOWN: ${ANOMALY_COOLDOWN:-5}
 
   # --- FRONTEND SERVICE (REACT DEVELOPMENT) ---
 
-  
-
   frontend-ui:
-
     image: node:20-alpine
-
     container_name: frontend-ui
-
-    # Runs npm install and then npm start
-
-    command: sh -c "npm install && npm run dev" 
-
+    command: sh -c "npm install && npm run dev"
     working_dir: /app
-
     volumes:
-
-      - ./frontend-ui:/app # Mounts local code for live reloading
-
+      - ./frontend-ui:/app
     ports:
-
-      - "5173:5173" # Expose the Vite default port
-
+      - "5173:5173"
     depends_on:
-
       - auth-service
-
       - analysis-service
-
     environment:
-
       NODE_ENV: development
 
-      
-
 volumes:
-
   postgres_data:
-
-
-

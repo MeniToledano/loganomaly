@@ -64,12 +64,14 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     Client->>Ingestion: POST /api/logs (X-API-Key)
-    Ingestion->>Ingestion: Validate API Key
+    Ingestion->>Ingestion: Validate & Sanitize Input
     Ingestion->>Kafka: Produce log event
     Ingestion-->>Client: 202 Accepted (event ID)
     
     Kafka->>Analysis: Consume log event
     Analysis->>DB: Store event
+    Analysis->>Analysis: Check for anomalies
+    Note over Analysis,DB: If >5 errors/min → Create Alert
 ```
 
 ## Services
@@ -77,8 +79,8 @@ sequenceDiagram
 | Service | Purpose | Port |
 |---------|---------|------|
 | auth-service | User registration, login, JWT | 8080 |
-| ingestion-service | Receives logs, publishes to Kafka | 8081 |
-| analysis-service | Consumes from Kafka, stores in DB | 8082 |
+| ingestion-service | Receives logs, validates, sanitizes, publishes to Kafka | 8081 |
+| analysis-service | Consumes from Kafka, stores in DB, anomaly detection | 8082 |
 | frontend-ui | React dashboard | 5173 |
 | postgres-db | PostgreSQL database | 5432 |
 | kafka | Message broker | 9092 |
@@ -140,6 +142,22 @@ curl http://localhost:8082/api/events/service/auth-service
 curl http://localhost:8082/api/events/level/ERROR
 ```
 
+### Alerts API (Anomaly Detection)
+
+```bash
+# Get all alerts
+curl http://localhost:8082/api/alerts
+
+# Get unacknowledged alerts
+curl http://localhost:8082/api/alerts/unacknowledged
+
+# Get alert statistics
+curl http://localhost:8082/api/alerts/stats
+
+# Acknowledge an alert
+curl -X PATCH "http://localhost:8082/api/alerts/{id}/acknowledge?acknowledgedBy=admin"
+```
+
 ### Authentication (Auth Service)
 
 ```bash
@@ -163,6 +181,17 @@ curl -X POST http://localhost:8080/login \
 | service | String | Yes | Source service name (max 100 chars) |
 | timestamp | ISO-8601 | No | Auto-generated if not provided |
 | metadata | Object | No | Additional key-value pairs |
+
+## Security Features
+
+- **Input Validation**: All log fields are validated with Jakarta Bean Validation
+- **Input Sanitization**: Log messages are sanitized to remove:
+  - `<script>` tags (XSS prevention)
+  - SQL injection patterns (`DROP`, `DELETE`, etc.)
+  - Control characters
+- **API Key Authentication**: Machine-to-machine auth for log ingestion
+- **JWT Authentication**: User authentication for dashboard access
+- **Secrets Externalization**: All credentials stored in environment variables
 
 ## Local Development
 
@@ -208,6 +237,37 @@ loganomaly/
 ```
 
 ## Configuration
+
+### Environment Variables (Secrets)
+
+All secrets are externalized to environment variables with fallback defaults:
+
+| Variable | Service | Default |
+|----------|---------|---------|
+| `INGESTION_API_KEY` | ingestion-service | `your-api-key-here-change-in-production` |
+| `JWT_SECRET` | auth-service | 32-char secret key |
+| `DB_USER` | auth/analysis | `user` |
+| `DB_PASSWORD` | auth/analysis | `password` |
+
+**Production**: Set these in your environment before running:
+
+```bash
+export INGESTION_API_KEY="my-secure-api-key"
+export JWT_SECRET="my-256-bit-secret-key-at-least-32-chars"
+export DB_USER="prod_user"
+export DB_PASSWORD="strong_password"
+docker-compose up --build -d
+```
+
+### Anomaly Detection Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANOMALY_ERROR_THRESHOLD` | 5 | Errors to trigger alert |
+| `ANOMALY_TIME_WINDOW_MINUTES` | 1 | Time window for counting |
+| `ANOMALY_COOLDOWN_MINUTES` | 5 | Cooldown between alerts |
+
+### Service Configuration
 
 | Config | Location | Key Settings |
 |--------|----------|--------------|

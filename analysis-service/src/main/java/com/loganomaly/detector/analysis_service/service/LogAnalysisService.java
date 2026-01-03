@@ -25,6 +25,7 @@ public class LogAnalysisService {
 
     private final LogEventRepository logEventRepository;
     private final ObjectMapper objectMapper;
+    private final AnomalyDetectorService anomalyDetector;
 
     @KafkaListener(
             topics = "${spring.kafka.topic.log-events}",
@@ -43,6 +44,9 @@ public class LogAnalysisService {
                     saved.getService(),
                     saved.getLevel(),
                     truncateMessage(saved.getMessage(), 100));
+
+            // Run anomaly detection on the saved event
+            anomalyDetector.analyze(saved);
 
         } catch (JsonProcessingException e) {
             logger.error("Failed to parse log event JSON: {}", e.getMessage());

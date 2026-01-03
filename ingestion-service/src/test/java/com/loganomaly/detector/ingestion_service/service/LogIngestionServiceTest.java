@@ -6,6 +6,7 @@ import com.loganomaly.detector.common.dto.BatchLogRequest;
 import com.loganomaly.detector.common.dto.BatchLogResponse;
 import com.loganomaly.detector.common.dto.LogEventRequest;
 import com.loganomaly.detector.common.dto.LogEventResponse;
+import com.loganomaly.detector.ingestion_service.util.InputSanitizer;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -36,6 +38,7 @@ class LogIngestionServiceTest {
     private KafkaTemplate<String, String> kafkaTemplate;
 
     private ObjectMapper objectMapper;
+    private InputSanitizer inputSanitizer;
 
     private LogIngestionService logIngestionService;
 
@@ -45,26 +48,30 @@ class LogIngestionServiceTest {
     void setUp() {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
+        inputSanitizer = new InputSanitizer();
         
-        logIngestionService = new LogIngestionService(kafkaTemplate, objectMapper);
+        logIngestionService = new LogIngestionService(kafkaTemplate, objectMapper, inputSanitizer);
         ReflectionTestUtils.setField(logIngestionService, "logEventsTopic", TEST_TOPIC);
     }
 
     @Test
     void shouldIngestLogSuccessfully() {
         // Given
+        Map<String, String> logMetadata = new HashMap<>();
+        logMetadata.put("key", "value");
+        
         LogEventRequest request = LogEventRequest.builder()
                 .timestamp(Instant.parse("2025-12-19T10:00:00Z"))
                 .level("INFO")
                 .message("Test message")
                 .service("test-service")
-                .metadata(Map.of("key", "value"))
+                .metadata(logMetadata)
                 .build();
 
         SendResult<String, String> sendResult = mock(SendResult.class);
-        RecordMetadata metadata = new RecordMetadata(
+        RecordMetadata recordMetadata = new RecordMetadata(
                 new TopicPartition(TEST_TOPIC, 0), 0, 0, 0, 0, 0);
-        when(sendResult.getRecordMetadata()).thenReturn(metadata);
+        when(sendResult.getRecordMetadata()).thenReturn(recordMetadata);
         
         CompletableFuture<SendResult<String, String>> future = CompletableFuture.completedFuture(sendResult);
         when(kafkaTemplate.send(eq(TEST_TOPIC), anyString(), anyString())).thenReturn(future);
@@ -212,11 +219,10 @@ class LogIngestionServiceTest {
     @Test
     void shouldIncludeMetadataInKafkaMessage() {
         // Given
-        Map<String, String> metadata = Map.of(
-                "user_id", "123",
-                "request_id", "abc-456",
-                "environment", "production"
-        );
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("user_id", "123");
+        metadata.put("request_id", "abc-456");
+        metadata.put("environment", "production");
 
         LogEventRequest request = LogEventRequest.builder()
                 .level("INFO")

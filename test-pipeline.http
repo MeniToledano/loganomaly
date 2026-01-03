@@ -170,6 +170,74 @@ GET {{analysisUrl}}/api/events/level/ERROR
 ### Get logs from last 24 hours
 GET {{analysisUrl}}/api/events/range
 
+### ===== ALERTS (Anomaly Detection) =====
+
+### Get all alerts
+GET {{analysisUrl}}/api/alerts
+
+### Get unacknowledged alerts
+GET {{analysisUrl}}/api/alerts/unacknowledged
+
+### Get alert statistics
+GET {{analysisUrl}}/api/alerts/stats
+
+### Get alerts by severity (INFO, WARNING, CRITICAL)
+GET {{analysisUrl}}/api/alerts/severity/INFO
+
+### Get alerts by service
+GET {{analysisUrl}}/api/alerts/service/test-svc
+
+### Get recent alerts (last N hours)
+GET {{analysisUrl}}/api/alerts/recent?hours=24
+
+### Acknowledge an alert (replace with actual alert ID)
+PATCH {{analysisUrl}}/api/alerts/YOUR-ALERT-ID-HERE/acknowledge?acknowledgedBy=admin
+
+### ===== TRIGGER ANOMALY ALERT =====
+### Send 6+ ERROR logs to trigger HIGH_ERROR_RATE alert
+
+### Error log 1
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{"level": "ERROR", "message": "Connection timeout", "service": "test-anomaly"}
+
+### Error log 2
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{"level": "ERROR", "message": "Connection timeout", "service": "test-anomaly"}
+
+### Error log 3
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{"level": "ERROR", "message": "Connection timeout", "service": "test-anomaly"}
+
+### Error log 4
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{"level": "ERROR", "message": "Connection timeout", "service": "test-anomaly"}
+
+### Error log 5
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{"level": "ERROR", "message": "Connection timeout", "service": "test-anomaly"}
+
+### Error log 6 (should trigger alert!)
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{"level": "ERROR", "message": "Connection timeout", "service": "test-anomaly"}
+
 ### ===== AUTH SERVICE =====
 
 ### Register new user
@@ -189,4 +257,28 @@ Content-Type: application/json
 {
     "username": "testuser",
     "password": "password123"
+}
+
+### ===== SECURITY TESTS (Input Sanitization) =====
+
+### Test script injection (should be sanitized)
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "level": "INFO",
+    "message": "<script>alert('xss')</script> Normal log message",
+    "service": "security-test"
+}
+
+### Test SQL injection pattern (should be filtered)
+POST {{ingestionUrl}}/api/logs
+Content-Type: application/json
+X-API-Key: {{apiKey}}
+
+{
+    "level": "INFO",
+    "message": "User login'; DROP TABLE users; --",
+    "service": "security-test"
 }
