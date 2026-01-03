@@ -2,7 +2,7 @@
 
 Real-time log monitoring and anomaly detection platform built with Event-Driven Microservices.
 
-![Dashboard Preview](docs/dashboard-preview.png)
+![Dashboard Preview](docs/dashboard.png)
 
 ## Tech Stack
 
